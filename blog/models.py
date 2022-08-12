@@ -6,12 +6,26 @@ from django.db.models import Count
 
 class PostQuerySet(models.QuerySet):
 
+    def fetch_with_posts_count(self):
+        most_popular_posts = self.annotate(likes_count=Count('likes')).order_by('-likes_count')
+        most_popular_posts_ids = [post.id for post in most_popular_posts]
+        most_popular_posts_with_comments = all_posts.filter(id__in=most_popular_posts_ids).annotate(comments_amount=Count('comments'))
+        most_popular_posts_comments_count_for_id = dict(most_popular_posts_with_comments.values_list('id', 'comments_amount'))
+        for most_popular_post in most_popular_posts:
+            most_popular_post.comments_amount = most_popular_posts_comments_count_for_id[most_popular_post.id]
+
+
     def year(self, year):
         posts_at_year = self.filter(published_at__year=year).order_by('published_at')
         return posts_at_year
 
 class TagQuerySet(models.QuerySet):
-    
+
+    def fetch_with_posts_count(self):
+        tag_ids = [tag.id for tag in self]
+        tags = Tag.objects.filter(id__in=tag_ids).annotate(posts_count=Count('posts'))
+        return tags
+
     def popular(self):
         return self.annotate(tags_count=Count('posts')).order_by('-tags_count')
 
